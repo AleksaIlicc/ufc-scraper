@@ -26,7 +26,7 @@
   (let [{:keys [Name StartTime Location FightCard]} (:LiveEventDetail (fetch-data api-url))]
     (println "Event:" Name)
     (println "Start:" StartTime)
-    (println "Venue:" (:Venue Location) "-" (:City Location) "," (:Country Location))
+    (println "Venue:" (str (:Venue Location) " - " (:City Location) ", " (:Country Location)))
     (println "Num of fights:" (count FightCard))
     (doseq [fight (map fight-summary FightCard)]
       (println fight))))
