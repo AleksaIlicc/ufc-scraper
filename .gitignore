@@ -3,35 +3,14 @@
 
 /target/
 /classes/
-/checkouts/
-pom.xml
-pom.xml.asc
 *.jar
 *.class
-/.lein-*
-/.lein-failures
-.lein-deps-sum
-.lein-plugins/
 
 .nrepl-port
 .nrepl-repl-history
-.lein-repl-history
-.reply-history
-
-.shadow-cljs/
-.cljs_rhino_repl
-/out/
-/cljs-out/
-clojurescript_release_*
-closure-release-*
-node_modules/
-package-lock.json
-yarn.lock
-.node_repl
 
 .lsp/
 .clj-kondo/.cache/
-!.clj-kondo/config.edn
 
 .idea/
 *.iml

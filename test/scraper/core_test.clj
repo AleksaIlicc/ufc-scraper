@@ -34,7 +34,7 @@
               :time     "2:40"}
              (by-order 6))))
 
-    (testing "every finished fight has exactly one winner who took part in it"
+    (testing "every finished fight has a winner who took part in it"
       (is (= 14 (count summaries)))
       (doseq [{:keys [order fighters winner]} summaries]
         (is (some #{winner} fighters) (str "fight " order))))))
@@ -47,14 +47,19 @@
         (is (nil? (:winner (core/fight-summary fight))) (pr-str outcome))))))
 
 (deftest main-test
-  (testing "prints event header and one line per fight, with fetch-data stubbed"
-    (let [requested-url (atom nil)]
-      (with-redefs [core/fetch-data (fn [url] (reset! requested-url url) event)]
+  (let [requested-url (atom nil)]
+    (with-redefs [core/fetch-data (fn [url] (reset! requested-url url) event)]
+      (testing "prints event header and one line per fight for the default event"
         (let [lines (str/split-lines (with-out-str (core/-main)))]
-          (is (= core/api-url @requested-url))
+          (is (= (core/event-url core/default-event-id) @requested-url))
           (is (= ["Event: UFC 333: Volkanovski vs. Evloev"
                   "Start: 2026-10-24T14:00Z"
                   "Venue: Etihad Arena - Abu Dhabi, United Arab Emirates"
                   "Num of fights: 14"]
                  (take 4 lines)))
-          (is (= 14 (count (drop 4 lines))) "one line per fight"))))))
+          (is (= 14 (count (drop 4 lines))) "one line per fight")))
+
+      (testing "uses the event id passed on the command line"
+        (with-out-str (core/-main "1337"))
+        (is (= "https://d29dxerjsp82wz.cloudfront.net/api/v3/event/live/1337.json"
+               @requested-url))))))
