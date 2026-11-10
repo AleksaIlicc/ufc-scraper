@@ -112,3 +112,22 @@
         (with-out-str (core/-main "1337"))
         (is (= "https://d29dxerjsp82wz.cloudfront.net/api/v3/event/live/1337.json"
                @requested-url))))))
+
+(deftest event-line-test
+  (is (= "1336 | UFC 333: Volkanovski vs. Evloev | 2026-10-24T14:00Z | 14 fights"
+         (core/event-line 1336 event)))
+  (is (= "1339 missing" (core/event-line 1339 {:LiveEventDetail {}}))))
+
+(deftest main-range-test
+  (let [requested-urls (atom [])
+        missing-url    (core/event-url 1339)]
+    (with-redefs [core/request-delay-ms 0
+                  core/fetch-data       (fn [url]
+                                          (swap! requested-urls conj url)
+                                          (if (= missing-url url) {:LiveEventDetail {}} event))]
+      (let [output (with-out-str (core/-main "1338" "1340"))]
+        (is (= (map core/event-url [1338 1339 1340]) @requested-urls))
+        (is (= ["1338 | UFC 333: Volkanovski vs. Evloev | 2026-10-24T14:00Z | 14 fights"
+                "1339 missing"
+                "1340 | UFC 333: Volkanovski vs. Evloev | 2026-10-24T14:00Z | 14 fights"]
+               (str/split-lines output)))))))

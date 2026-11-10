@@ -11,6 +11,8 @@
 
 (def round-seconds 300)
 
+(def request-delay-ms 1000)
+
 (defn event-url
   [id]
   (str base-url id ".json"))
@@ -20,6 +22,10 @@
   (:body (http/get url {:as                 :json
                         :connection-timeout timeout-ms
                         :socket-timeout     timeout-ms})))
+
+(defn missing?
+  [event]
+  (empty? (:LiveEventDetail event)))
 
 (defn fighter-name
   [{{:keys [FirstName LastName]} :Name}]
@@ -78,12 +84,30 @@
       (update :fighters (partial str/join " vs "))
       (update :scores format-scores)))
 
-(defn -main [& [event-id]]
-  (let [url (event-url (or event-id default-event-id))
-        {:keys [event start venue fights]} (event-summary (fetch-data url))]
+(defn event-line
+  [id data]
+  (if (missing? data)
+    (str id " missing")
+    (let [{:keys [event start fights]} (event-summary data)]
+      (str id " | " event " | " start " | " (count fights) " fights"))))
+
+(defn print-event
+  [id]
+  (let [{:keys [event start venue fights]} (event-summary (fetch-data (event-url id)))]
     (println "Event:" event)
     (println "Start:" start)
     (println "Venue:" venue)
     (println "Num of fights:" (count fights))
     (pprint/print-table [:order :segment :status :fighters :winner :method :round :time :duration :scores]
                         (map table-row fights))))
+
+(defn print-events
+  [from to]
+  (doseq [id (range from (inc to))]
+    (println (event-line id (fetch-data (event-url id))))
+    (Thread/sleep request-delay-ms)))
+
+(defn -main [& [from to]]
+  (if to
+    (print-events (parse-long from) (parse-long to))
+    (print-event (or from default-event-id))))
