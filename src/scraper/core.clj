@@ -9,6 +9,8 @@
 
 (def timeout-ms 10000)
 
+(def round-seconds 300)
+
 (defn event-url
   [id]
   (str base-url id ".json"))
@@ -27,6 +29,25 @@
   [fighters]
   (some #(when (= "Win" (get-in % [:Outcome :Outcome])) (fighter-name %)) fighters))
 
+(defn clock->seconds
+  [clock]
+  (let [[minutes seconds] (map parse-long (str/split clock #":"))]
+    (+ (* 60 minutes) seconds)))
+
+(defn fight-duration
+  [{:keys [EndingRound EndingTime]}]
+  (when (and EndingRound EndingTime)
+    (+ (* round-seconds (dec EndingRound)) (clock->seconds EndingTime))))
+
+(defn scorecards
+  [fighters fight-scores]
+  (let [fighter-ids (map :FighterId fighters)]
+    (not-empty
+     (mapv (fn [{judge-scores :Fighters}]
+             (let [score-by-id (into {} (map (juxt :FighterId :Score)) judge-scores)]
+               (mapv score-by-id fighter-ids)))
+           fight-scores))))
+
 (defn fight-summary
   [{:keys [FightOrder CardSegment Status Fighters Result]}]
   {:order    FightOrder
@@ -36,7 +57,9 @@
    :winner   (winner Fighters)
    :method   (:Method Result)
    :round    (:EndingRound Result)
-   :time     (:EndingTime Result)})
+   :time     (:EndingTime Result)
+   :duration (fight-duration Result)
+   :scores   (scorecards Fighters (:FightScores Result))})
 
 (defn event-summary
   [{{:keys [Name StartTime Location FightCard]} :LiveEventDetail}]
@@ -45,6 +68,16 @@
    :venue  (str (:Venue Location) " - " (:City Location) ", " (:Country Location))
    :fights (mapv fight-summary FightCard)})
 
+(defn format-scores
+  [scores]
+  (str/join ", " (map (partial str/join "-") scores)))
+
+(defn table-row
+  [fight]
+  (-> fight
+      (update :fighters (partial str/join " vs "))
+      (update :scores format-scores)))
+
 (defn -main [& [event-id]]
   (let [url (event-url (or event-id default-event-id))
         {:keys [event start venue fights]} (event-summary (fetch-data url))]
@@ -52,5 +85,5 @@
     (println "Start:" start)
     (println "Venue:" venue)
     (println "Num of fights:" (count fights))
-    (pprint/print-table [:order :segment :status :fighters :winner :method :round :time]
-                        (map #(update % :fighters (partial str/join " vs ")) fights))))
+    (pprint/print-table [:order :segment :status :fighters :winner :method :round :time :duration :scores]
+                        (map table-row fights))))
