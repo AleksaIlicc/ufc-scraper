@@ -1,7 +1,8 @@
 (ns scraper.core
   (:require [clojure.pprint :as pprint]
             [clojure.string :as str]
-            [scraper.api :as api]
+            [scraper.archive :as archive]
+            [scraper.crawl :as crawl]
             [scraper.parse :as parse]))
 
 (def default-event-id 1336)
@@ -27,7 +28,7 @@
 
 (defn print-event
   [id]
-  (let [{:keys [event start venue fights]} (parse/event-summary (api/fetch-data (api/event-url id)))]
+  (let [{:keys [event start venue fights]} (parse/event-summary (crawl/load-event! archive/default-dir id))]
     (println "Event:" event)
     (println "Start:" start)
     (println "Venue:" venue)
@@ -38,7 +39,7 @@
 (defn print-events
   [from to]
   (doseq [id (range from (inc to))]
-    (println (event-line id (api/fetch-data (api/event-url id))))
+    (println (event-line id (crawl/load-event! archive/default-dir id)))
     (Thread/sleep request-delay-ms)))
 
 (defn -main [& [from to]]

@@ -11,3 +11,12 @@
 
 (def fights-without-winner
   (read-fixture "fights-without-winner.json"))
+
+(defn with-temp-dir
+  [f]
+  (let [dir (io/file (System/getProperty "java.io.tmpdir") (str "scraper-test-" (random-uuid)))]
+    (try
+      (f (str dir))
+      (finally
+        (doseq [file (reverse (file-seq dir))]
+          (io/delete-file file true))))))

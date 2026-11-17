@@ -9,8 +9,7 @@
   [id]
   (str base-url id ".json"))
 
-(defn fetch-data
-  [url]
-  (:body (http/get url {:as                 :json
-                        :connection-timeout timeout-ms
-                        :socket-timeout     timeout-ms})))
+(defn fetch-event-json
+  [id]
+  (:body (http/get (event-url id) {:connection-timeout timeout-ms
+                                   :socket-timeout     timeout-ms})))

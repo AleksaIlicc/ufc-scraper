@@ -1,7 +1,12 @@
 (ns scraper.parse
-  (:require [clojure.string :as str]))
+  (:require [cheshire.core :as json]
+            [clojure.string :as str]))
 
 (def round-seconds 300)
+
+(defn json->event
+  [body]
+  (json/parse-string body true))
 
 (defn missing?
   [event]

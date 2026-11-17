@@ -3,6 +3,8 @@
 
 /target/
 /classes/
+
+/data/
 *.jar
 *.class
 
