@@ -1,78 +1,12 @@
 (ns scraper.core
-  (:require [clj-http.client :as http]
-            [clojure.pprint :as pprint]
-            [clojure.string :as str]))
-
-(def base-url "https://d29dxerjsp82wz.cloudfront.net/api/v3/event/live/")
+  (:require [clojure.pprint :as pprint]
+            [clojure.string :as str]
+            [scraper.api :as api]
+            [scraper.parse :as parse]))
 
 (def default-event-id 1336)
 
-(def timeout-ms 10000)
-
-(def round-seconds 300)
-
 (def request-delay-ms 1000)
-
-(defn event-url
-  [id]
-  (str base-url id ".json"))
-
-(defn fetch-data
-  [url]
-  (:body (http/get url {:as                 :json
-                        :connection-timeout timeout-ms
-                        :socket-timeout     timeout-ms})))
-
-(defn missing?
-  [event]
-  (empty? (:LiveEventDetail event)))
-
-(defn fighter-name
-  [{{:keys [FirstName LastName]} :Name}]
-  (str FirstName " " LastName))
-
-(defn winner
-  [fighters]
-  (some #(when (= "Win" (get-in % [:Outcome :Outcome])) (fighter-name %)) fighters))
-
-(defn clock->seconds
-  [clock]
-  (let [[minutes seconds] (map parse-long (str/split clock #":"))]
-    (+ (* 60 minutes) seconds)))
-
-(defn fight-duration
-  [{:keys [EndingRound EndingTime]}]
-  (when (and EndingRound EndingTime)
-    (+ (* round-seconds (dec EndingRound)) (clock->seconds EndingTime))))
-
-(defn scorecards
-  [fighters fight-scores]
-  (let [fighter-ids (map :FighterId fighters)]
-    (not-empty
-     (mapv (fn [{judge-scores :Fighters}]
-             (let [score-by-id (into {} (map (juxt :FighterId :Score)) judge-scores)]
-               (mapv score-by-id fighter-ids)))
-           fight-scores))))
-
-(defn fight-summary
-  [{:keys [FightOrder CardSegment Status Fighters Result]}]
-  {:order    FightOrder
-   :segment  CardSegment
-   :status   Status
-   :fighters (mapv fighter-name Fighters)
-   :winner   (winner Fighters)
-   :method   (:Method Result)
-   :round    (:EndingRound Result)
-   :time     (:EndingTime Result)
-   :duration (fight-duration Result)
-   :scores   (scorecards Fighters (:FightScores Result))})
-
-(defn event-summary
-  [{{:keys [Name StartTime Location FightCard]} :LiveEventDetail}]
-  {:event  Name
-   :start  StartTime
-   :venue  (str (:Venue Location) " - " (:City Location) ", " (:Country Location))
-   :fights (mapv fight-summary FightCard)})
 
 (defn format-scores
   [scores]
@@ -86,14 +20,14 @@
 
 (defn event-line
   [id data]
-  (if (missing? data)
+  (if (parse/missing? data)
     (str id " missing")
-    (let [{:keys [event start fights]} (event-summary data)]
+    (let [{:keys [event start fights]} (parse/event-summary data)]
       (str id " | " event " | " start " | " (count fights) " fights"))))
 
 (defn print-event
   [id]
-  (let [{:keys [event start venue fights]} (event-summary (fetch-data (event-url id)))]
+  (let [{:keys [event start venue fights]} (parse/event-summary (api/fetch-data (api/event-url id)))]
     (println "Event:" event)
     (println "Start:" start)
     (println "Venue:" venue)
@@ -104,7 +38,7 @@
 (defn print-events
   [from to]
   (doseq [id (range from (inc to))]
-    (println (event-line id (fetch-data (event-url id))))
+    (println (event-line id (api/fetch-data (api/event-url id))))
     (Thread/sleep request-delay-ms)))
 
 (defn -main [& [from to]]
